@@ -1,0 +1,31 @@
+name: Backend Export & Slack Send
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'   # Every Monday, 8am Malaysia time
+  workflow_dispatch:
+
+jobs:
+  backend_exports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install psycopg2-binary slack_sdk
+
+      - name: Run all backend scripts & zip & send to Slack
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+        run: python combined_backend_reports.py
