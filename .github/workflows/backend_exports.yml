@@ -2,7 +2,7 @@ name: Backend Export & Slack Send
 
 on:
   schedule:
-    - cron: '0 0 * * 1'   # Every Monday, 8am Malaysia time
+    - cron: '0 22 * * 0'  # 22:00 UTC on Sunday = 6am MYT Monday
   workflow_dispatch:
 
 jobs:
