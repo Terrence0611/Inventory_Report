@@ -25,7 +25,6 @@ def split_date_time(dt):
             return str(dt), ""
 
 def export_stock_transfer():
-    # Mappings (exact as needed)
     outlet_ids = {
         "EX-HQ": 1, "BL-Mid Valley": 2, "BL-Desa ParkCity": 3, "BL-Pavilion Bukit Jalil": 4, "BPLUS-SJ": 5,
         "BPLUS-Kota Damansara": 6, "BL-HQ": 9, "BPLUS-SV2": 8, "BL-1 Utama": 11, "BL-EkoCheras": 12,
@@ -35,7 +34,6 @@ def export_stock_transfer():
     }
     outlet_lookup = {str(v): k for k, v in outlet_ids.items()}
     brand_ids = {"1": "HQ", "2": "BL", "3": "VEN", "4": "CUR", "5": "B+"}
-
     conn = psycopg2.connect(
         host="aws-0-ap-southeast-1.pooler.supabase.com",
         port=5432,
@@ -44,17 +42,16 @@ def export_stock_transfer():
         password="xaTxM7aJSH34q4vM"
     )
     cur = conn.cursor()
-
     # Build product ID-to-name map
     product_name_map = {}
     cur.execute('SELECT "id", "name" FROM "TblProductInventory"')
     for pid, pname in cur.fetchall():
         product_name_map[str(pid)] = pname
-
     # Query all rows, sorted
     cur.execute('''
         SELECT
             "stocktransferid",
+            "stockRequestId",
             "stockTransferQtyData",
             "brandIdFrom",
             "locationIdFrom",
@@ -66,33 +63,28 @@ def export_stock_transfer():
         ORDER BY "stocktransferid" ASC
     ''')
     rows = cur.fetchall()
-
     date_str = datetime.now().strftime("%Y%m%d")
     csv_filename = f"stock_transfer_export_{date_str}.csv"
     csv_columns = [
-        "Stock Transfer ID", "Brand ID From", "Location ID From", "Brand ID To", "Location ID To",
+        "Stock Transfer ID", "Stock Request ID", "Brand ID From", "Location ID From", "Brand ID To", "Location ID To",
         "Created At Date", "Created At Time", "Remarks", "Product ID", "Product Name", "Product Total Qty",
         "Batch ID", "Batch Qty", "Batch Number", "Batch Expiry Date", "Batch Expiry Time", "Batch Remark"
     ]
-
     with open(csv_filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=csv_columns)
         writer.writeheader()
         for row in rows:
-            (stocktransferid, json_data, brandIdFrom, locationIdFrom,
+            (stocktransferid, stockRequestId, json_data, brandIdFrom, locationIdFrom,
              brandIdTo, locationIdTo, createdAt, remarks) = row
             created_at_date, created_at_time = split_date_time(createdAt)
-
             brandIdFrom_str = str(brandIdFrom) if brandIdFrom is not None else ""
             brandIdTo_str = str(brandIdTo) if brandIdTo is not None else ""
             brand_from_name = brand_ids.get(brandIdFrom_str, brandIdFrom)
             brand_to_name = brand_ids.get(brandIdTo_str, brandIdTo)
-
             locationIdFrom_str = str(locationIdFrom) if locationIdFrom is not None else ""
             locationIdTo_str = str(locationIdTo) if locationIdTo is not None else ""
             location_from_name = outlet_lookup.get(locationIdFrom_str, locationIdFrom)
             location_to_name = outlet_lookup.get(locationIdTo_str, locationIdTo)
-
             if isinstance(json_data, str):
                 try:
                     qty_data = json.loads(json_data)
@@ -115,6 +107,7 @@ def export_stock_transfer():
                     if not batches:
                         writer.writerow({
                             "Stock Transfer ID": stocktransferid,
+                            "Stock Request ID": stockRequestId,
                             "Brand ID From": brand_from_name,
                             "Location ID From": location_from_name,
                             "Brand ID To": brand_to_name,
@@ -143,6 +136,7 @@ def export_stock_transfer():
                             expiry_date, expiry_time = split_date_time(batch.get("expiryDate"))
                             writer.writerow({
                                 "Stock Transfer ID": stocktransferid,
+                                "Stock Request ID": stockRequestId,
                                 "Brand ID From": brand_from_name,
                                 "Location ID From": location_from_name,
                                 "Brand ID To": brand_to_name,
@@ -174,6 +168,7 @@ def export_stock_transfer():
                         product_name = product_name_map.get(str(product_id), "")
                         writer.writerow({
                             "Stock Transfer ID": stocktransferid,
+                            "Stock Request ID": stockRequestId,
                             "Brand ID From": brand_from_name,
                             "Location ID From": location_from_name,
                             "Brand ID To": brand_to_name,
@@ -206,6 +201,7 @@ def export_stock_transfer():
                             product_name = json_product_name
                         writer.writerow({
                             "Stock Transfer ID": stocktransferid,
+                            "Stock Request ID": stockRequestId,
                             "Brand ID From": brand_from_name,
                             "Location ID From": location_from_name,
                             "Brand ID To": brand_to_name,
@@ -227,6 +223,7 @@ def export_stock_transfer():
             else:
                 writer.writerow({
                     "Stock Transfer ID": stocktransferid,
+                    "Stock Request ID": stockRequestId,
                     "Brand ID From": brand_from_name,
                     "Location ID From": location_from_name,
                     "Brand ID To": brand_to_name,
